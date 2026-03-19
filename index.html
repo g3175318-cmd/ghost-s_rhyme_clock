@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Poetic Clock</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Archivo+Narrow:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --body-bg: #0e0e0d;
+    --case-top: #2a2924;
+    --case-mid: #1e1e1b;
+    --case-bot: #141412;
+    --bezel-outer: #2f2e2a;
+    --bezel-inner: #111110;
+    --display-bg: #0a0f08;
+    --phosphor: #a8d896;
+    --phosphor-dim: #3a5430;
+    --phosphor-glow: rgba(168, 216, 150, 0.18);
+    --dot: #c8a84b;
+    --grain-opacity: 0.045;
+    --font-mono: 'Share Tech Mono', monospace;
+    --font-label: 'Archivo Narrow', sans-serif;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--body-bg);
+    overflow: hidden;
+  }
+
+  /* Subtle noise grain overlay */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 999; pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+    opacity: var(--grain-opacity);
+  }
+
+  .clock-body {
+    position: relative;
+    width: 520px;
+    padding: 36px 40px 30px;
+    border-radius: 18px;
+    background: linear-gradient(160deg, var(--case-top) 0%, var(--case-mid) 50%, var(--case-bot) 100%);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.06) inset,
+      0 -1px 0 rgba(0,0,0,0.6) inset,
+      1px 0 0 rgba(255,255,255,0.03) inset,
+      -1px 0 0 rgba(0,0,0,0.4) inset,
+      0 28px 80px rgba(0,0,0,0.85),
+      0 8px 24px rgba(0,0,0,0.6),
+      0 2px 6px rgba(0,0,0,0.5);
+    user-select: none;
+  }
+
+  /* Top edge highlight */
+  .clock-body::before {
+    content: '';
+    position: absolute; top: 0; left: 18px; right: 18px; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+    border-radius: 50%;
+  }
+
+  /* Fine horizontal ribbing texture */
+  .clock-body::after {
+    content: '';
+    position: absolute; inset: 0; border-radius: 18px; pointer-events: none;
+    background: repeating-linear-gradient(
+      180deg,
+      rgba(0,0,0,0) 0px, rgba(0,0,0,0) 3px,
+      rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px
+    );
+  }
+
+  .display-bezel {
+    position: relative;
+    border-radius: 10px;
+    padding: 3px;
+    background: linear-gradient(145deg, #141412, #2a2924 40%, #111 100%);
+    box-shadow:
+      0 0 0 1px rgba(0,0,0,0.8),
+      2px 4px 14px rgba(0,0,0,0.7) inset,
+      0 1px 0 rgba(255,255,255,0.04);
+  }
+
+  .display-screen {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--display-bg);
+    padding: 28px 26px 22px;
+    min-height: 168px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-shadow:
+      0 0 40px rgba(168,216,150,0.04) inset,
+      0 0 0 1px rgba(0,0,0,0.9) inset;
+  }
+
+  /* Phosphor screen vignette */
+  .display-screen::before {
+    content: '';
+    position: absolute; inset: 0; pointer-events: none; border-radius: 8px;
+    background: radial-gradient(ellipse 90% 80% at 50% 50%, transparent 50%, rgba(0,0,0,0.55) 100%);
+    z-index: 2;
+  }
+
+  /* Scanline overlay */
+  .display-screen::after {
+    content: '';
+    position: absolute; inset: 0; pointer-events: none; border-radius: 8px; z-index: 3;
+    background: repeating-linear-gradient(
+      180deg,
+      rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px,
+      rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 3px
+    );
+  }
+
+  .poem-text {
+    position: relative; z-index: 4;
+    font-family: var(--font-mono);
+    font-size: 15.5px;
+    line-height: 1.85;
+    color: var(--phosphor);
+    text-shadow:
+      0 0 8px rgba(168,216,150,0.8),
+      0 0 20px rgba(168,216,150,0.35),
+      0 0 40px rgba(168,216,150,0.12);
+    letter-spacing: 0.01em;
+    min-height: 4.5em;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .poem-text .cursor {
+    display: inline-block;
+    width: 9px; height: 1.1em;
+    background: var(--phosphor);
+    vertical-align: text-bottom;
+    margin-left: 2px;
+    box-shadow: 0 0 8px rgba(168,216,150,0.9);
+    animation: blink 1.1s step-end infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  /* Bottom status bar */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 20px;
+    padding: 0 2px;
+  }
+
+  .brand {
+    font-family: var(--font-label);
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.12);
+  }
+
+  .indicator-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .time-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--phosphor-dim);
+    text-shadow: 0 0 6px rgba(168,216,150,0.3);
+    letter-spacing: 0.08em;
+    transition: color 0.5s;
+  }
+
+  .status-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--dot);
+    box-shadow: 0 0 6px rgba(200,168,75,0.8), 0 0 12px rgba(200,168,75,0.3);
+    animation: pulse 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .loading-bar {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+    background: var(--phosphor-dim);
+    transform-origin: left;
+    transform: scaleX(0);
+    transition: transform 0.2s linear;
+    z-index: 5;
+    box-shadow: 0 0 6px rgba(168,216,150,0.5);
+    border-radius: 0 0 0 0;
+    display: none;
+  }
+
+  /* Subtle bottom screws */
+  .screw {
+    position: absolute;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #3a3930, #0e0e0c);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.8), 0 1px 0 rgba(255,255,255,0.05) inset;
+  }
+  .screw::after {
+    content: '';
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%,-50%) rotate(45deg);
+    width: 5px; height: 0.8px;
+    background: rgba(0,0,0,0.5);
+    border-radius: 1px;
+    box-shadow: 0 0 0 0.5px rgba(255,255,255,0.04);
+  }
+  .screw-tl { top: 12px; left: 14px; }
+  .screw-tr { top: 12px; right: 14px; }
+  .screw-bl { bottom: 10px; left: 14px; }
+  .screw-br { bottom: 10px; right: 14px; }
+</style>
+</head>
+<body>
+
+<div class="clock-body">
+  <div class="screw screw-tl"></div>
+  <div class="screw screw-tr"></div>
+  <div class="screw screw-bl"></div>
+  <div class="screw screw-br"></div>
+
+  <div class="display-bezel">
+    <div class="display-screen">
+      <div class="loading-bar" id="loadingBar"></div>
+      <div class="poem-text" id="poemText">
+        <span class="cursor"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <span class="brand">GHOST'S Rhyme Clock — Made By Amlan Dey</span>
+    <div class="indicator-group">
+      <span class="time-label" id="timeLabel">--:--</span>
+      <div class="status-dot"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const poemEl = document.getElementById('poemText');
+  const timeLabel = document.getElementById('timeLabel');
+  const loadingBar = document.getElementById('loadingBar');
+
+  let currentMinute = -1;
+  let typingTimeout = null;
+
+  function pad(n) { return String(n).padStart(2,'0'); }
+
+  function formatTime(d) {
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function timeToWords(d) {
+    const h = d.getHours(), m = d.getMinutes();
+    const hourNames = ['midnight','one','two','three','four','five','six','seven','eight','nine','ten','eleven','noon','one','two','three','four','five','six','seven','eight','nine','ten','eleven'];
+    const minuteWords = ['','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','quarter','sixteen','seventeen','eighteen','nineteen','twenty','twenty-one','twenty-two','twenty-three','twenty-four','twenty-five','twenty-six','twenty-seven','twenty-eight','twenty-nine','half'];
+    if (m === 0) return `${hourNames[h]} o'clock`;
+    if (m <= 30) return `${minuteWords[m]} past ${hourNames[h]}`;
+    return `${minuteWords[60-m]} to ${hourNames[(h+1)%24]}`;
+  }
+
+  async function fetchPoem(timeStr) {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: `You are a poet inside a minimalist clock. Every minute, you write a short 4-line rhyming poem that tells the current time. The poem must be atmospheric, precise, and beautiful. It must rhyme (AABB or ABAB). It must mention the specific time. Never add a title, label, or any explanation — just the poem, exactly 4 lines. No asterisks, no quotes.`,
+        messages: [{ role: 'user', content: `Write a 4-line rhyming poem for the time: ${timeStr}` }]
+      })
+    });
+    const data = await resp.json();
+    return data.content.map(b => b.text || '').join('').trim();
+  }
+
+  function typePoem(text) {
+    if (typingTimeout) clearTimeout(typingTimeout);
+    const lines = text.split('\n').filter(l => l.trim());
+    const full = lines.join('\n');
+    let i = 0;
+    poemEl.textContent = '';
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+
+    function tick() {
+      if (i < full.length) {
+        poemEl.textContent = full.slice(0, i + 1);
+        poemEl.appendChild(cursor);
+        i++;
+        const delay = full[i-1] === '\n' ? 80 : (18 + Math.random() * 22);
+        typingTimeout = setTimeout(tick, delay);
+      } else {
+        poemEl.appendChild(cursor);
+      }
+    }
+    tick();
+  }
+
+  function showLoading() {
+    poemEl.innerHTML = '<span class="cursor"></span>';
+    loadingBar.style.display = 'block';
+    let p = 0;
+    const iv = setInterval(() => {
+      p = Math.min(p + (Math.random() * 0.04), 0.88);
+      loadingBar.style.transform = `scaleX(${p})`;
+    }, 200);
+    return () => {
+      clearInterval(iv);
+      loadingBar.style.transform = 'scaleX(1)';
+      setTimeout(() => {
+        loadingBar.style.display = 'none';
+        loadingBar.style.transform = 'scaleX(0)';
+      }, 400);
+    };
+  }
+
+  async function checkAndUpdate() {
+    const now = new Date();
+    const min = now.getMinutes();
+    timeLabel.textContent = formatTime(now);
+
+    if (min !== currentMinute) {
+      currentMinute = min;
+      const done = showLoading();
+      try {
+        const timeStr = timeToWords(now);
+        const poem = await fetchPoem(timeStr);
+        done();
+        typePoem(poem);
+      } catch (e) {
+        done();
+        typePoem('The clock is still,\nthe hour unknown —\na silence deep,\na quiet tone.');
+      }
+    }
+  }
+
+  // Tick every second for clock label, check minute for poem
+  setInterval(() => {
+    const now = new Date();
+    timeLabel.textContent = formatTime(now);
+    if (now.getMinutes() !== currentMinute) checkAndUpdate();
+  }, 1000);
+
+  checkAndUpdate();
+</script>
+</body>
+</html>
